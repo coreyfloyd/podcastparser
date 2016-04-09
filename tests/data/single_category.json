@@ -1,0 +1,10 @@
+{
+  "title": "Foo",
+  "link": "http://www.example.com",
+  "episodes": [],
+  "categories": [
+    {
+      "name": "News & Politics"
+    }
+  ]
+}

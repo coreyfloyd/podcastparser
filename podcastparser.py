@@ -79,11 +79,13 @@ class RSS(Target):
 
 class PodcastItem(Target):
     def end(self, handler, text):
+        handler.validate_categories()
         by_published = lambda entry: entry.get('published')
         handler.data['episodes'].sort(key=by_published, reverse=True)
         if handler.max_episodes:
             episodes = handler.data['episodes'][:handler.max_episodes]
             handler.data['episodes'] = episodes
+
 
 
 class PodcastAttr(Target):
@@ -105,6 +107,16 @@ class PodcastAttrFromHref(Target):
         if value:
             value = urlparse.urljoin(handler.base, value)
             handler.set_podcast_attr(self.key, self.filter_func(value))
+
+class Category(Target):
+    def start(self, handler, attrs):
+        if 'text' in attrs:
+            name = attrs.get('text')
+            handler.add_category(name)
+        elif len(attrs) > 0:
+            for key in attrs:
+                handler.add_category(key)
+                handler.add_category(attrs.get(key))
 
 
 class EpisodeItem(Target):
@@ -204,6 +216,8 @@ class PodcastAtomLink(AtomLink):
         elif mime_type == 'text/html':
             if rel in ('self', 'alternate'):
                 handler.set_podcast_attr('link', url)
+        elif rel == 'self':
+            handler.set_podcast_attr('feed_url', url)
 
 
 class AtomContent(Target):
@@ -554,6 +568,15 @@ MAPPING = {
     'rss/channel/itunes:image': PodcastAttrFromHref('cover_url'),
     'rss/channel/atom:link': PodcastAtomLink(),
 
+    'rss/channel/itunes:explicit': PodcastAttr('explicit'),
+    'rss/channel/itunes:keywords': PodcastAttr('keywords'),
+    'rss/channel/itunes:category': Category(),
+    'rss/channel/itunes:category/itunes:category': Category(),
+
+    'rss/channel/itunes:author': PodcastAttr('author', squash_whitespace),
+    'rss/channel/itunes:owner/itunes:name': PodcastAttr('owner_name', squash_whitespace),
+    'rss/channel/itunes:owner/itunes:email': PodcastAttr('owner_email', squash_whitespace),
+
     'rss/channel/item': EpisodeItem(),
     'rss/channel/item/guid': EpisodeGuid('guid'),
     'rss/channel/item/title': EpisodeAttr('title', squash_whitespace),
@@ -565,6 +588,9 @@ MAPPING = {
     'rss/channel/item/itunes:duration': EpisodeAttr('total_time', parse_time),
     'rss/channel/item/pubDate': EpisodeAttr('published', parse_pubdate),
     'rss/channel/item/atom:link': AtomLink(),
+
+    'rss/channel/item/itunes:explicit': EpisodeAttr('explicit'),
+    'rss/channel/item/itunes:keywords': EpisodeAttr('keywords'),
 
     'rss/channel/item/media:content': Enclosure('fileSize'),
     'rss/channel/item/enclosure': Enclosure('length'),
@@ -594,9 +620,11 @@ class PodcastHandler(sax.handler.ContentHandler):
         self.max_episodes = max_episodes
         self.base = url
         self.text = None
+        self.categories = []
         self.episodes = []
         self.data = {
             'title': file_basename_no_extension(url),
+            'categories': self.categories,
             'episodes': self.episodes
         }
         self.path_stack = []
@@ -628,6 +656,11 @@ class PodcastHandler(sax.handler.ContentHandler):
             '_guid_is_permalink': False,
             'chapters': [],
         })
+
+    def validate_categories(self):
+        if len(self.data['categories']) == 0:
+            del self.data['categories']
+
 
     def validate_episode(self):
         entry = self.episodes[-1]
@@ -669,6 +702,11 @@ class PodcastHandler(sax.handler.ContentHandler):
             'url': url,
             'file_size': file_size,
             'mime_type': mime_type,
+        })
+
+    def add_category(self, name):
+        self.categories.append({
+            'name': name,
         })
 
     def startElement(self, name, attrs):
