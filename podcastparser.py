@@ -592,6 +592,7 @@ MAPPING = {
     'rss/channel/item/pubDate': EpisodeAttr('published', parse_pubdate),
     'rss/channel/item/atom:link': AtomLink(),
 
+    'rss/channel/item/itunes:author': EpisodeAttr('author', squash_whitespace),
     'rss/channel/item/itunes:explicit': EpisodeAttr('explicit'),
     'rss/channel/item/itunes:keywords': EpisodeAttr('keywords'),
 
