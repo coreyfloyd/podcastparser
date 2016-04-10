@@ -139,6 +139,13 @@ class EpisodeAttrRelativeLink(EpisodeAttr):
         text = urlparse.urljoin(handler.base, text)
         super(EpisodeAttrRelativeLink, self).end(handler, text)
 
+class EpisodeAttrFromHref(Target):
+    def start(self, handler, attrs):
+        value = attrs.get('href')
+        if value:
+            value = urlparse.urljoin(handler.base, value)
+            handler.set_episode_attr(self.key, self.filter_func(value))
+
 
 class EpisodeGuid(EpisodeAttr):
     def start(self, handler, attrs):
@@ -588,6 +595,7 @@ MAPPING = {
     'rss/channel/item/itunes:summary': EpisodeAttr('description', squash_whitespace),
     'rss/channel/item/itunes:subtitle': EpisodeAttr('subtitle', squash_whitespace),
     'rss/channel/item/content:encoded': EpisodeAttr('description_html'),
+    'rss/channel/item/media:thumbnail': EpisodeAttrFromHref('thumbnail'),
     'rss/channel/item/itunes:duration': EpisodeAttr('total_time', parse_time),
     'rss/channel/item/pubDate': EpisodeAttr('published', parse_pubdate),
     'rss/channel/item/atom:link': AtomLink(),
